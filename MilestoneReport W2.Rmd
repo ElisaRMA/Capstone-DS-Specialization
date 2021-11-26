@@ -1,0 +1,265 @@
+---
+title: "Milestone Report - Week2"
+author: "ElisaRMA"
+date: "07/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Summary
+
+This is a Milestone Report of the Capstone project of the Data Science Specialization. The Capstone project consists of the creation of a next word prediction algorithm using SwiftKey data from blogs, news and twitter datasets. 
+
+This Milestone Report describes the first steps on building the algorithm. This is the first Report, based on Week 1 and 2 of the final course of the specialization and show the steps of getting the data and the initial exploratory analysis.
+
+## Choosing the packages for the project
+
+Despite the instructors initially recommending the R package `tm`, the chosen package for this project was `quanteda` `citation(quanteda)`.
+
+For reading the data the `readr` package was chosen and for the creation of plots the `ggplot2` package was used.
+ 
+
+```{r message=FALSE, warning=FALSE}
+
+library(readr) # to read .txt files
+library(quanteda) # for NLP and Text Analysis 
+library(quanteda.textplots)
+library(quanteda.textstats)
+library(dplyr)
+library(ggplot2)
+
+```
+
+## Reading the data
+
+The data for this project was provided by [SwiftKey](https://swiftkey.com/en/terms/) and only the English data (`en_US`) was used. The link for the data is [here](https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip)
+
+The data was provides in the form of three `.txt` files, separated depending on the media it was collected from. The data was collected from blog posts, news and twitter posts. By opening each file it was possible to verify how many lines each one had. The twitter files contained 2360148, the blog file 899288 lines and the news file contained 1010242 lines. 
+
+To load the files the `read_lines` function from the `readr` package was chosen. 
+
+```{r warning=FALSE}
+
+blogsraw <- read_lines("./Coursera-SwiftKey/final/en_US/en_US.blogs.txt")
+
+newsraw <- read_lines("./Coursera-SwiftKey/final/en_US/en_US.news.txt") 
+
+twitterraw <- read_lines("./Coursera-SwiftKey/final/en_US/en_US.twitter.txt")
+
+```
+
+After loading the data some initial exploratory analysis was performed to get a sense of the datasets and their sizes.
+
+
+```{r blogs line count}
+length(blogsraw) 
+```
+
+```{r news line count}
+length(newsraw)
+```
+
+```{r twitter line count}
+length(twitterraw)
+
+```
+
+As observed, the three files contain a large amount of lines. The Blogs data contains 899288 lines, the news data contain 1012042 lines and the twitter data contains the largest amount of lines, at a total of 2360148 lines.
+
+Additionally, the number of words in each dataset was also counted, as demonstrated below. The blogs dataset contained around 36 million words, the news dataset around 33 million and twitter data set contained around 29 million words. As observed, even tough the Twitter dataset presented more lines, it contained less words due to the structure of this data. As twitter has a word limit to each post, this was expected.
+
+On the other hand the blogs dataset contained the largest amount of words, even tough presented the smallest amount of lines. This indicated that each blog post had a higher amount of words than each news post.
+
+```{r blogs words count}
+
+btokens <- tokens(corpus(blogsraw), what="word", 
+               remove_punct = TRUE, 
+               remove_numbers = TRUE)
+
+sum(ntoken(btokens))
+
+```
+
+```{r news word count}
+
+ntokens <- tokens(corpus(newsraw), what="word", 
+               remove_punct = TRUE, 
+               remove_numbers = TRUE)
+
+sum(ntoken(ntokens))
+
+```
+
+```{r twitter word count}
+
+ttokens <- tokens(corpus(twitterraw), what="word", 
+               remove_punct = TRUE, 
+               remove_numbers = TRUE)
+
+sum(ntoken(ttokens))
+
+```
+
+As these datasets contained a lot of information, only part of each file was loaded into R for further analysis. In addition, the data was also subsetted to spare the computer processing power and to keep some data for testing the algorithm in the final steps of the Captsone Project.
+
+The code below describes how the data was trimmed. The `read_lines` function was also used but limiting the `n_max` argument according to the data.
+
+```{r final read data}
+
+blogs <- read_lines("./Coursera-SwiftKey/final/en_US/en_US.blogs.txt",
+                    n_max=100000)
+
+news <- read_lines("./Coursera-SwiftKey/final/en_US/en_US.news.txt", 
+                   n_max=150000) 
+
+twitter <- read_lines("./Coursera-SwiftKey/final/en_US/en_US.twitter.txt", 
+                      n_max=250000)
+
+```
+
+After reading subsets of each data, all subsets were merged together
+
+
+```{r mergedata, message=FALSE, warning=FALSE}
+
+all_data <- c(blogs,news,twitter) # 105 MB
+
+```
+
+## Cleaning and preparing the data
+
+The first step to cleaning and preparing the data for further analysis and model creation was to tokenize the data. This step is done by using the `quanteda` package. To tokenize, first it was necessary to transform the data into a corpus format.
+
+Along with the tokenization some cleaning was also performed, to remove punctuation, digits, acronyms and words with symbols. The acronyms were removed according to the list provided by Krishna Teja Tokala. The data is available on the [github repository](https://github.com/krishnakt031990/Crawl-Wiki-For-Acronyms.git). 
+
+```{r corpus and token, message=FALSE, warning=FALSE}
+
+tr_tokensraw <- tokens(corpus(all_data), what="word", 
+                       remove_punct = TRUE, remove_numbers = TRUE)
+# Acronyms removal
+AcronymsFile <- read_delim("AcronymsFile.csv", delim = "-", 
+                           escape_double = FALSE, col_names = FALSE, 
+                           trim_ws = TRUE)
+
+acronyms <- corpus(AcronymsFile$X1)
+
+tr_tokens_acr <- tokens_remove(tr_tokensraw, 
+                                     pattern = acronyms)
+
+
+#Remove words with symbols 
+tr_tokens_sym <- tokens_remove(tr_tokens_acr, 
+                                    pattern = c('[^[:alnum:]]'), 
+                                    valuetype = "regex")
+
+
+# Stopword removal
+tr_tokens_stop <- tokens_remove(tr_tokens_sym, 
+                                    pattern = stopwords("en"))
+
+```
+
+  The next step was to lowercase all words so that a DFM could be build without redundancies. This step was achieved using the `tokens_tolower` function.
+  
+```{r lowercase everything}
+
+train_finaltokens <- tokens_tolower(tr_tokens_stop)
+
+```
+
+After all cleaning and preparing the tokens data ngrams were also generated. The N-grams were generated with 2 and 3 words. For this step the `token_ngrams` function was used, applying it to the final version of the tokens.
+
+```{r}
+
+n2gram <- tokens_ngrams(train_finaltokens, n=2)
+n3gram <- tokens_ngrams(train_finaltokens, n=3)
+
+```
+
+
+### DFM
+
+The next step, before exploratory data analysis, was to build a DFM for the initial tokens and n-grams of 2 ans 3 words. 
+
+```{r ngram and ngram dfm}
+
+# DFM - tokens
+train_dfm <- dfm(train_finaltokens, tolower = FALSE)
+
+
+# DFM - ngrams
+n2gram_dfm <- dfm(n2gram)
+n3gram_dfm <- dfm(n3gram)
+
+```
+
+
+## Exploratory analysis
+
+After setting up the data, exploratory data analysis could be performed with the DFM. The first analysis was to verify which were the most frequent words. This was done with the dfm from tokens and n-grams and  wordclouds and bar plots were build for all datasets.
+
+
+```{r}
+
+wordcloud <- textplot_wordcloud(train_dfm, 
+                                ordered_color = TRUE, 
+                                max_words=50)
+
+```
+
+
+```{r}
+
+wordfreq <- textstat_frequency(train_dfm, n=15)
+
+ggplot(wordfreq, aes(reorder(feature, frequency), frequency))+
+        geom_col()+
+        geom_text(aes(label=wordfreq$frequency), data=wordfreq, stat='identity', nudge_y = 2000)+
+        coord_flip()
+
+```
+
+As observed, by both plots the most frequent word in the datasets were 'said' followed by 'one' and 'just', with almost the same frequency. 
+
+For the n-grams frequency, only bar plots were created as follows:
+
+```{r}
+
+n2gram_freq <- textstat_frequency(n2gram_dfm, n=15)
+ggplot(n2gram_freq, aes(reorder(feature, frequency), frequency))+
+        geom_col()+
+        geom_text(aes(label=n2gram_freq$frequency), data=n2gram_freq, stat='identity', nudge_y = 100)+
+        coord_flip()
+
+```
+
+
+```{r}
+
+n3gram_freq <- textstat_frequency(n3gram_dfm, n=15)
+ggplot(n3gram_freq, aes(reorder(feature, frequency), frequency))+
+        geom_col()+
+        geom_text(aes(label=n3gram_freq$frequency), data=n3gram_freq, stat='identity', nudge_y = 10)+
+        coord_flip()
+
+```
+
+
+When comparing the frequency of the 1-gram, 2-gram and 3-gram some overlapping was detected. These overlapping expressions and words indicate that, usually, some words appear together most of the times.
+
+The word 'like', for instance, was one of the most frequent words in the 1-gram, also appearing in the 2-gram expressions 'fell like' and 'looks like'. Something similar happened with the word 'time.
+
+In this case, the word 'time' was present in the 1-gram plot, the 2-gram plot in the 'first time' expression and in the 3-gram plot in the 'first time since' expression. As observed, the expression 'first time'  appears both in the 2-gram plot and in the 3-gram, only with the addition of the word 'since'. 
+
+The word 'new' also appears in the three plots in the form of 'new-york', 'new york city', 'happy new year' and 'new york times'. For these expressions, between the 2-gram and 3-gram the 'new-york' expression were highly common, appearing as 3-grams in the form of 'new york city' =and 'new york times'.
+
+The overall frequency was also smaller as the amount of words in the expression progressed. For the 1-gram frequency, the highest frequency was around 40000 appearances. For 2-gram was around 2000 and for 3-gram was around 300.
+
+Inconsistencies were also detected in the 3-gram frequency plot with the expressions 'love love love' and 'gov chris christie'.
+
+## Conclusion
+
+This milestone report described the exploratory analysis done with the Swiftkey dataset. This was the first step to build the prediction algorithm for the Capstone Project.
