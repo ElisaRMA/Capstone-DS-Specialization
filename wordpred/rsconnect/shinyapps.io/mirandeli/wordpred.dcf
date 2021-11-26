@@ -1,0 +1,13 @@
+name: wordpred
+title: wordpred
+username:
+account: mirandeli
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5104694
+bundleId: 5244962
+url: https://mirandeli.shinyapps.io/wordpred/
+when: 1636736780.97895
+lastSyncTime: 1636736780.97895
+asMultiple: FALSE
+asStatic: FALSE
