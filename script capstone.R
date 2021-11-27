@@ -401,10 +401,10 @@ library(dplyr)
 database <- bind_rows(twitterdb, newsdb, blogsdb)
 
 # sum the frequencies 
-database2 <- aggregate(.~feature+prediction, data=database, FUN=sum)
+database <- aggregate(.~feature+prediction, data=database, FUN=sum)
 
 # Checking the size - max of 1Gb so shiny can load it
-dbsize <- object.size(database2)
+dbsize <- object.size(database)
 print(dbsize, units="Gb", standard='legacy', digits=3L)#0.356 Gb
         
 
@@ -416,167 +416,166 @@ library(stringr)
 database <- database %>% 
         mutate(across(where(is.character), str_trim))
 
-saveRDS(database2, 'database.rds')
+saveRDS(database, 'database.rds')
 
 ########### prediction function ###########
 
-# the first version of the function - took too long to return the next possible words 
+# V1- took too long to return the next possible words 
 ########## FUNCTION ##############
 
-Wordpred <- function(dataTable=database, phrase ="I love New") {
-        options(warn = -1)
-        print('calculating...')
-        library(data.table)
-        library(stringr)
-        
-        # separate words on the phrase and count them
-        words <- unlist(strsplit(phrase, " "))
-        wordcount <- length(words)
-        
-        # extract the ngrams of the phrase
-
-        
-        #top most common words
-        top10 <- c("of ","in","to","for","on","to","at","and","in","with")
-        
-        #if phrase has more than 4 words, 
-        if(wordcount >= 4){
-                
-                fourgram <- tolower(words[(length(words)-3):length(words)])
-                trigram <- tolower(words[(length(words)-2):length(words)])
-                bigram <- tolower(words[(length(words)-1):length(words)])
-                unigram <- tolower(words[length(words)])
-                
-                # search 4gram ans return 3 most common
-                search <- str_detect(database$feature, paste(fourgram, collapse=" "))
-                predwords <-database[search==TRUE,c(2,3)]
-                if(nrow(predwords) > 0){
-                        predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
-                        return(predwords[order(-predwords$frequency),][1:3,1])}
-                
-                 #### aggregate AFTER
-                
-                # search 3grams and return 3 most common if there is
-                search <- str_detect(database$feature, paste(trigram, collapse=" "))
-                predwords <-database[search==TRUE,c(2,3)]
-                if(nrow(predwords) > 0){ 
-                        predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
-                        return(predwords[order(-predwords$frequency),][1:3,1])}
-                
-                # search 2grams and return 3 most common if there is
-                search <- str_detect(database$feature, paste(bigram, collapse=" "))
-                predwords <-database[search==TRUE,c(2,3)]
-                if(nrow(predwords) > 0){
-                        predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
-                        return(predwords[order(-predwords$frequency),][1:3,1])}
-                
-                # search 1grams and return 3 most common if there is
-                search <- str_detect(database$feature, paste(unigram, collapse=" "))
-                predwords <-database[search==TRUE,c(2,3)]
-                if(nrow(predwords) > 0){
-                        predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
-                        return(predwords[order(-predwords$frequency),][1:3,1])}
-                
-                #if nothing is found, return a random word from the 10 most frequent 
-                return(sample(top10,1))
-                
-        }
-        
-
-        else if(wordcount == 3){
-                
-                trigram <- tolower(words[(length(words)-2):length(words)])
-                bigram <- tolower(words[(length(words)-1):length(words)])
-                unigram <- tolower(words[length(words)])
-                
-                # search 3grams and return 3 most common if there is
-                search <- str_detect(database$feature, paste(trigram, collapse=" "))
-                predwords <-database[search==TRUE,c(2,3)]
-                if(nrow(predwords) > 0){
-                        predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
-                        return (predwords[order(-predwords$frequency),][1:3,1])}
-                        
-                        
-                
-                # search 2grams and return 3 most common if there is
-                search <- str_detect(database$feature, paste(bigram, collapse=" "))
-                predwords <-database[search==TRUE,c(2,3)]
-                if(nrow(predwords) > 0){
-                        predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
-                        return (predwords[order(-predwords$frequency),][1:3,1])} 
-                
-                # search 1grams and return 3 most common if there is
-                search <- str_detect(database$feature, paste(unigram, collapse=" "))
-                predwords <-database[search==TRUE,c(2,3)]
-                if(nrow(predwords) > 0){
-                        predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
-                        return (predwords[order(-predwords$frequency),][1:3,1])}
-                
-                #if nothing is found, return a random word from the 10 most frequent 
-                return(sample(top10,1))
-                
-        }
-        
-        else if(wordcount == 2){
-                
-                bigram <- tolower(words[(length(words)-1):length(words)])
-                unigram <- tolower(words[length(words)])
-
-                # search 2grams and return 3 most common if there is
-                search <- str_detect(database$feature, paste(bigram, collapse=" "))
-                predwords <-database[search==TRUE,c(2,3)]
-                if(nrow(predwords) > 0){
-                        predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
-                        return (predwords[order(-predwords$frequency),][1:3,1])}
-                
-                # search 1grams and return 3 most common if there is
-                search <- str_detect(database$feature, paste(unigram, collapse=" "))
-                predwords <-database[search==TRUE,c(2,3)]
-                if(nrow(predwords) > 0){
-                        predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
-                        return (predwords[order(-predwords$frequency),][1:3,1])}
-                
-                #if nothing is found, return a random word from the 10 most frequent 
-                return(sample(top10,1))
-                
-        }
-        
-        else {
-                unigram <- tolower(words[length(words)])
-                
-                # search 1grams and return 3 most common if there is
-                search <- str_detect(database$feature, paste(unigram, collapse=" "))
-                predwords <-database[search==TRUE,c(2,3)]
-                if(nrow(predwords) > 0){
-                        predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
-                        return (predwords[order(-predwords$frequency),][1:3,1])}
-                
-                #if nothing is found, return a random word from the 10 most frequent 
-                return(sample(top10,1))
-                
-        }
-        
-
-        #must return something
-        return(sample(top10,1))
-        
-}
+# Wordpred <- function(dataTable=database, phrase ="I love New") {
+#         options(warn = -1)
+#         print('calculating...')
+#         library(data.table)
+#         library(stringr)
+#         
+#         # separate words on the phrase and count them
+#         words <- unlist(strsplit(phrase, " "))
+#         wordcount <- length(words)
+#         
+#         # extract the ngrams of the phrase
+# 
+#         
+#         #top most common words
+#         top10 <- c("of ","in","to","for","on","to","at","and","in","with")
+#         
+#         #if phrase has more than 4 words, 
+#         if(wordcount >= 4){
+#                 
+#                 fourgram <- tolower(words[(length(words)-3):length(words)])
+#                 trigram <- tolower(words[(length(words)-2):length(words)])
+#                 bigram <- tolower(words[(length(words)-1):length(words)])
+#                 unigram <- tolower(words[length(words)])
+#                 
+#                 # search 4gram ans return 3 most common
+#                 search <- str_detect(database$feature, paste(fourgram, collapse=" "))
+#                 predwords <-database[search==TRUE,c(2,3)]
+#                 if(nrow(predwords) > 0){
+#                         predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
+#                         return(predwords[order(-predwords$frequency),][1:3,1])}
+#                 
+#                  #### aggregate AFTER
+#                 
+#                 # search 3grams and return 3 most common if there is
+#                 search <- str_detect(database$feature, paste(trigram, collapse=" "))
+#                 predwords <-database[search==TRUE,c(2,3)]
+#                 if(nrow(predwords) > 0){ 
+#                         predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
+#                         return(predwords[order(-predwords$frequency),][1:3,1])}
+#                 
+#                 # search 2grams and return 3 most common if there is
+#                 search <- str_detect(database$feature, paste(bigram, collapse=" "))
+#                 predwords <-database[search==TRUE,c(2,3)]
+#                 if(nrow(predwords) > 0){
+#                         predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
+#                         return(predwords[order(-predwords$frequency),][1:3,1])}
+#                 
+#                 # search 1grams and return 3 most common if there is
+#                 search <- str_detect(database$feature, paste(unigram, collapse=" "))
+#                 predwords <-database[search==TRUE,c(2,3)]
+#                 if(nrow(predwords) > 0){
+#                         predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
+#                         return(predwords[order(-predwords$frequency),][1:3,1])}
+#                 
+#                 #if nothing is found, return a random word from the 10 most frequent 
+#                 return(sample(top10,1))
+#                 
+#         }
+#         
+# 
+#         else if(wordcount == 3){
+#                 
+#                 trigram <- tolower(words[(length(words)-2):length(words)])
+#                 bigram <- tolower(words[(length(words)-1):length(words)])
+#                 unigram <- tolower(words[length(words)])
+#                 
+#                 # search 3grams and return 3 most common if there is
+#                 search <- str_detect(database$feature, paste(trigram, collapse=" "))
+#                 predwords <-database[search==TRUE,c(2,3)]
+#                 if(nrow(predwords) > 0){
+#                         predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
+#                         return (predwords[order(-predwords$frequency),][1:3,1])}
+#                         
+#                         
+#                 
+#                 # search 2grams and return 3 most common if there is
+#                 search <- str_detect(database$feature, paste(bigram, collapse=" "))
+#                 predwords <-database[search==TRUE,c(2,3)]
+#                 if(nrow(predwords) > 0){
+#                         predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
+#                         return (predwords[order(-predwords$frequency),][1:3,1])} 
+#                 
+#                 # search 1grams and return 3 most common if there is
+#                 search <- str_detect(database$feature, paste(unigram, collapse=" "))
+#                 predwords <-database[search==TRUE,c(2,3)]
+#                 if(nrow(predwords) > 0){
+#                         predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
+#                         return (predwords[order(-predwords$frequency),][1:3,1])}
+#                 
+#                 #if nothing is found, return a random word from the 10 most frequent 
+#                 return(sample(top10,1))
+#                 
+#         }
+#         
+#         else if(wordcount == 2){
+#                 
+#                 bigram <- tolower(words[(length(words)-1):length(words)])
+#                 unigram <- tolower(words[length(words)])
+# 
+#                 # search 2grams and return 3 most common if there is
+#                 search <- str_detect(database$feature, paste(bigram, collapse=" "))
+#                 predwords <-database[search==TRUE,c(2,3)]
+#                 if(nrow(predwords) > 0){
+#                         predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
+#                         return (predwords[order(-predwords$frequency),][1:3,1])}
+#                 
+#                 # search 1grams and return 3 most common if there is
+#                 search <- str_detect(database$feature, paste(unigram, collapse=" "))
+#                 predwords <-database[search==TRUE,c(2,3)]
+#                 if(nrow(predwords) > 0){
+#                         predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
+#                         return (predwords[order(-predwords$frequency),][1:3,1])}
+#                 
+#                 #if nothing is found, return a random word from the 10 most frequent 
+#                 return(sample(top10,1))
+#                 
+#         }
+#         
+#         else {
+#                 unigram <- tolower(words[length(words)])
+#                 
+#                 # search 1grams and return 3 most common if there is
+#                 search <- str_detect(database$feature, paste(unigram, collapse=" "))
+#                 predwords <-database[search==TRUE,c(2,3)]
+#                 if(nrow(predwords) > 0){
+#                         predwords <- aggregate(.~prediction, data=database[search==TRUE,c(2,3)], FUN = sum)
+#                         return (predwords[order(-predwords$frequency),][1:3,1])}
+#                 
+#                 #if nothing is found, return a random word from the 10 most frequent 
+#                 return(sample(top10,1))
+#                 
+#         }
+#         
+# 
+#         #must return something
+#         return(sample(top10,1))
+#         
+# }
 
 
 ########## FUNCTION2 ##############
 
-PredFunction <- function(dataTable=database, input='I love New'){
+PredFunction <- function(dataTable='dt', input='Lorem ipsum'){
         
         #setting up the function
         options(warn = -1)
-        print('calculating...')
         library(data.table)
         library(stringr)
         
         top10 <- c("of ","in","to","for",
                    "on","to","at","and",
                    "in","with")
-
+        
         # parse the input, lowercase, separate words and count
         words <- tolower(unlist(strsplit(input, " ")))
         nwords <- length(words)
@@ -585,63 +584,64 @@ PredFunction <- function(dataTable=database, input='I love New'){
                 
                 #create 4gram and search
                 fourgram <- paste(words[(nwords-3):nwords], collapse = " ")
-                preds <- database[database$input==fourgram,]
-                if(nrow(preds)>0) return(preds[1:3,2])
+                preds <- setorder(database[database$input==fourgram,], -frequency)
+                if(nrow(preds)>0) return(preds[1,2])
                 
                 #create 3gram and search
                 trigram <- paste(words[(nwords-2):nwords], collapse = " ")
-                preds <- database[database$input==trigram,]
-                if(nrow(preds)>0) return(preds[1:3,2])
+                preds <- setorder(database[database$input==trigram,], -frequency)
+                if(nrow(preds)>0) return(preds[1,2])
                 
                 #create 2gram and search
                 bigram <- paste(words[(nwords-1):nwords], collapse = " ")
-                preds <- database[database$input==bigram,]
-                if(nrow(preds)>0) return(preds[1:3,2])
+                preds <- setorder(database[database$input==bigram,], -frequency)
+                if(nrow(preds)>0) return(preds[1,2])
                 
                 #create 1gram and search
                 unigram <- paste(words[nwords], collapse = " ")
-                preds <- database[database$input==unigram,]
-                if(nrow(preds)>0) return(preds[1:3,2])
+                preds <- setorder(database[database$input==unigram,], -frequency)
+                if(nrow(preds)>0) return(preds[1,2])
                 
                 #if nothing is found, return random from top 10
                 return(sample(top10, 3))
                 
         }               
-                
+        
         else if (nwords==3){
-
+                
                 #create 3gram and search
                 trigram <- paste(words[(nwords-2):nwords], collapse = " ")
-                preds <- database[database$input==trigram,]
-                if(nrow(preds)>0) return(preds[1:3,2])
+                preds <- setorder(database[database$input==trigram,], -frequency)
+                if(nrow(preds)>0) return(preds[1,2])
+                
                 
                 #create 2gram and search
                 bigram <- paste(words[(nwords-1):nwords], collapse = " ")
-                preds <- database[database$input==bigram,]
-                if(nrow(preds)>0) return(preds[1:3,2])
+                preds <- setorder(database[database$input==bigram,], -frequency)
+                if(nrow(preds)>0) return(preds[1,2])
                 
                 #create 1gram and search
                 unigram <- paste(words[nwords], collapse = " ")
-                preds <- database[database$input==unigram,]
-                if(nrow(preds)>0) return(preds[1:3,2])
+                preds <- setorder(database[database$input==unigram,], -frequency)
+                if(nrow(preds)>0) return(preds[1,2])
                 
                 #if nothing is found, return random from top 10
                 return(sample(top10, 3))
-                        
-                        
-                }
+                
+                
+        }
         
         else if (nwords==2){
-
+                
                 #create 2gram and search
                 bigram <- paste(words[(nwords-1):nwords], collapse = " ")
-                preds <- database[database$input==bigram,]
-                if(nrow(preds)>0) return(preds[1:3,2])
+                preds <- setorder(database[database$input==bigram,], -frequency)
+                if(nrow(preds)>0) return(preds[1,2])
                 
                 #create 1gram and search
                 unigram <- paste(words[nwords], collapse = " ")
-                preds <- database[database$input==unigram,]
-                if(nrow(preds)>0) return(preds[1:3,2])
+                preds <- setorder(database[database$input==unigram,], -frequency)
+                if(nrow(preds)>0) return(preds[1,2])
                 
                 #if nothing is found, return random from top 10
                 return(sample(top10, 3))
@@ -649,11 +649,11 @@ PredFunction <- function(dataTable=database, input='I love New'){
         }
         
         else {
-
+                
                 #create 1gram and search
                 unigram <- paste(words[nwords], collapse = " ")
-                preds <- database[database$input==unigram,]
-                if(nrow(preds)>0) return(preds[1:3,2])
+                preds <- setorder(database[database$input==unigram,], -frequency)
+                if(nrow(preds)>0) return(preds[1,2])
                 
                 #if nothing is found, return random from top 10
                 return(sample(top10, 3))
@@ -664,4 +664,61 @@ PredFunction <- function(dataTable=database, input='I love New'){
         #if we get here, still need some prediction
         return(sample(top10, 3))
 }
+
+
+########## TEST ##############
+
+# test set
+blogs_test <- readRDS("./test data/blogs_test.rds")
+news_test <- readRDS("./test data/news_test.rds")
+twitter_test <- readRDS("./test data/twitter_test.rds")
+
+testset <- c(blogs_test, news_test, twitter_test)
+
+# extract random phrases from testset
+
+corpustest <- corpus(testset)
+tokentest <- tokens(corpustest, what = 'sentence', 
+                    remove_punct = TRUE,
+                    remove_symbols = TRUE,
+                    remove_numbers = TRUE,
+                    remove_url = TRUE)
+
+twitter_test <- readRDS("./wordpred/data/database.rds")
+
+score <- 0 
+
+for (i in 1:100) {
+        samples <- unlist(sample(tokentest, 100))
+        
+        library(stringi)
+        last_word <- stri_extract_last_words(samples[i])
+        input <- stri_replace_last(samples[i], replacement = " ", 
+                                   regex = paste0(last_word, "[:punct:]"))
+        
+        input <- str_trim(input, side='right')
+        
+        prediction <- unlist(PredFunction(database, input))
+               
+        if (prediction == last_word){
+                score <- score + 1 
                 
+                
+        }
+        
+        print(score) 
+        
+}
+
+# Tests - scores x of 100 phrases
+# 1 - 13
+# 2 - 10
+# 3 - 11
+# 4 - 7 
+# 5 - 14
+# 6 - 17
+# 7 - 13
+# 8 - 9
+# 9 - 11
+# 10 - 11
+# Média - 11% 
