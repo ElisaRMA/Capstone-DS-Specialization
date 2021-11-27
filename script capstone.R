@@ -675,8 +675,6 @@ twitter_test <- readRDS("./test data/twitter_test.rds")
 
 testset <- c(blogs_test, news_test, twitter_test)
 
-# extract random phrases from testset
-
 corpustest <- corpus(testset)
 tokentest <- tokens(corpustest, what = 'sentence', 
                     remove_punct = TRUE,
